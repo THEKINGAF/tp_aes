@@ -37,25 +37,30 @@ void reverse_halfround(uint8_t * block, uint8_t * key) {
 }
 
 int main () {
-    uint8_t block[AES_BLOCK_SIZE] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
-    uint8_t block_cpy[AES_BLOCK_SIZE] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
-    uint8_t key[AES_128_KEY_SIZE] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F};
+    uint8_t key[AES_128_KEY_SIZE], reversed_block[AES_BLOCK_SIZE], ciphered_block[AES_BLOCK_SIZE];
+    unsigned int i, j;
+    uint8_t plaintext[AES_128_KEY_SIZE] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
+    uint8_t ciphertext[AES_128_KEY_SIZE] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
 
-    printf("in  = "); print_block(block); printf("\n");
+    for (j = 0; j < AES_128_KEY_SIZE; ++i) {
+	i = 0;
+	do {
+	    key[j] = i;
 
-    // 3 1/2 rounds encryption
-    aes128_enc(block, key, 4, 0);
+	    block_copy(ciphertext, reversed_block);
+	    reverse_halfround(reversed_block, key);
+	    block_copy(plaintext, ciphered_block);
+	    aes128_enc(ciphered_block, key, 3, 0);
 
-    printf("out = "); print_block(block); printf("\n");
-
-    reverse_halfround(block, key);
-
-    printf("1/2 = "); print_block(block); printf("\n");
-
-    // 3 1/2 rounds encryption
-    aes128_enc(block_cpy, key, 3, 1);
-
-    printf("out = "); print_block(block_cpy); printf("\n");
+	    ++i;
+	} while (blocks_are_equals(reversed_block, ciphered_block) && i < 255);
+	if (blocks_are_equals(reversed_block, ciphered_block))
+	    printf("%02x ", i);
+	else {
+	    printf("Error : can't find the key\n");
+	    return -1;
+	}
+    }
 
     return 0;
 }
