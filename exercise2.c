@@ -58,8 +58,12 @@ int main () {
 	    printf("%02x ", i);
 	else {
 	    printf("Error : can't find the key\n");
-	    return -1;
+	    return 1;
 	}
+    }
+
+    for (i = 3; i > 0; --i) {
+
     }
 
     return 0;

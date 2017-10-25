@@ -1,6 +1,7 @@
 #include <stdint.h>
 #define AES_BLOCK_SIZE 16
 #define AES_128_KEY_SIZE 16
+#define AES_KEY_SCHEDULE_WORD_SIZE 4
 
 /*
  * Encrypt @block with @key over @nrounds. If @lastfull is true, the last round includes MixColumn, otherwise it doesn't.$
@@ -30,6 +31,13 @@ static const uint8_t Sinv[256] =
 	0xA0, 0xE0, 0x3B, 0x4D, 0xAE, 0x2A, 0xF5, 0xB0, 0xC8, 0xEB, 0xBB, 0x3C, 0x83, 0x53, 0x99, 0x61,
 	0x17, 0x2B, 0x04, 0x7E, 0xBA, 0x77, 0xD6, 0x26, 0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D
 };
+
+/*
+ * Compute the @(round + 1)-th round key in @next_key, given the @round-th key in @prev_key
+ * @round in {0...9}
+ * The ``master key'' is the 0-th round key 
+ */
+void next_aes128_round_key(const uint8_t prev_key[16], uint8_t next_key[16], int round);
 
 /*
  * Compute the @round-th round key in @prev_key, given the @(round + 1)-th key in @next_key 

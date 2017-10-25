@@ -1,27 +1,22 @@
 C=gcc
 CFLAGS=
 LDFLAGS=
-EXEC=exercise1 exercise2
+EXEC=ex1q2 ex1q3 exercise2
 
 all: $(EXEC)
 
-exercise1: exercise1.o tp-utils.o aes-128_enc.o
+ex1q2: ex1q2.o tp-utils.o aes-128_enc.o
 		$(CC) -o $@ $^ $(LDFLAGS)
 
-exercise1.o: exercise1.c
-		$(CC) -o $@ -c $< $(CFLAGS)
+ex1q3: ex1q3.o tp-utils.o aes-128_enc.o
+		$(CC) -o $@ $^ $(LDFLAGS)
 
 exercise2: exercise2.o tp-utils.o aes-128_enc.o
 		$(CC) -o $@ $^ $(LDFLAGS)
 
-exercise2.o: exercise2.c
+*.o: *.c
 		$(CC) -o $@ -c $< $(CFLAGS)
 
-tp-utils.o: tp-utils.c
-		$(CC) -o $@ -c $< $(CFLAGS)
-
-aes-128_enc.o: aes-128_enc.c
-		$(CC) -o $@ -c $< $(CFLAGS)
-
+.PHONY: clean
 clean:
 		rm -rf *.o

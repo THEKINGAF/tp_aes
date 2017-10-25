@@ -108,6 +108,26 @@ void aes_round(uint8_t block[AES_BLOCK_SIZE], uint8_t round_key[AES_BLOCK_SIZE],
 	}
 }
 
+/* Calculate the rcon used in key expansion */
+unsigned char rcon(unsigned char in) {
+    unsigned char c=1;
+    unsigned char b;
+
+    if(in == 0)  
+	return 0; 
+
+    while(in != 1) {
+	b = c & 0x80;
+	c <<= 1;
+	if(b == 0x80)
+	    c ^= 0x1b;
+
+        in--;
+    }
+    
+    return c;
+}
+
 /*
  * Compute the @(round + 1)-th round key in @next_key, given the @round-th key in @prev_key
  * @round in {0...9}
@@ -115,25 +135,40 @@ void aes_round(uint8_t block[AES_BLOCK_SIZE], uint8_t round_key[AES_BLOCK_SIZE],
  */
 void next_aes128_round_key(const uint8_t prev_key[16], uint8_t next_key[16], int round)
 {
-/*    int a;
-    uint8_t t[4];
-    unsigned int c = 0;
+#ifndef SIMPLE_KEY_SCHEDULE 
+    unsigned int i;
+    uint8_t * p_key_0;
+    uint8_t * p_key_m1;
+    
+    for (i = 0; i < AES_128_KEY_SIZE; ++i)
+        next_key[i] = prev_key[i];
 
-    for (a = 0; a< 4; ++a)
-        t[a] = prev_key[a + 16 - 4];
+    p_key_0 = next_key;
+    p_key_m1 = next_key + AES_128_KEY_SIZE - AES_KEY_SCHEDULE_WORD_SIZE;
 
-    schedule_core(t, i);
+    /* Rotate previous word and apply S-box. Also XOR Rcon for first byte. */
+    p_key_0[0] ^= S[p_key_m1[1]] ^ rcon(round);
+    p_key_0[1] ^= S[p_key_m1[2]];
+    p_key_0[2] ^= S[p_key_m1[3]];
+    p_key_0[3] ^= S[p_key_m1[0]];
 
-    for (a = 0; a < 4; ++a) {
-        next_key[a] = prev_key[a] ^ t[a];
-        c++;
+    for (i = 1; i < AES_128_KEY_SIZE / AES_KEY_SCHEDULE_WORD_SIZE; ++i)
+    {
+        p_key_m1 = p_key_0;
+        p_key_0 += AES_KEY_SCHEDULE_WORD_SIZE;
+
+        /* XOR in previous word */
+        p_key_0[0] ^= p_key_m1[0];
+        p_key_0[1] ^= p_key_m1[1];
+        p_key_0[2] ^= p_key_m1[2];
+        p_key_0[3] ^= p_key_m1[3];
     }
-*/
-    int i;
+#else
+    unsigned int i;
 
     for (i = 0; i < 16; ++i)
         next_key[i] = prev_key[i];
-
+#endif
 }
 
 /*
@@ -143,10 +178,41 @@ void next_aes128_round_key(const uint8_t prev_key[16], uint8_t next_key[16], int
  */
 void prev_aes128_round_key(const uint8_t next_key[16], uint8_t prev_key[16], int round)
 {
-    int i;
+#ifndef SIMPLE_KEY_SCHEDULE
+    unsigned int i;
+    uint8_t * p_key_0;
+    uint8_t * p_key_m1;
+ 
+    for (i = 0; i < AES_128_KEY_SIZE; ++i)
+        prev_key[i] = next_key[i];
+
+    p_key_0 = prev_key + AES_128_KEY_SIZE - AES_KEY_SCHEDULE_WORD_SIZE;
+    p_key_m1 = p_key_0 - AES_KEY_SCHEDULE_WORD_SIZE;
+
+    for (i = 1; i < AES_128_KEY_SIZE / AES_KEY_SCHEDULE_WORD_SIZE; ++i)
+    {
+        /* XOR in previous word */
+        p_key_0[0] ^= p_key_m1[0];
+        p_key_0[1] ^= p_key_m1[1];
+        p_key_0[2] ^= p_key_m1[2];
+        p_key_0[3] ^= p_key_m1[3];
+
+        p_key_0 = p_key_m1;
+        p_key_m1 -= AES_KEY_SCHEDULE_WORD_SIZE;
+    }
+
+    /* Rotate previous word and apply S-box. Also XOR Rcon for first byte. */
+    p_key_m1 = prev_key + AES_128_KEY_SIZE - AES_KEY_SCHEDULE_WORD_SIZE;
+    p_key_0[0] ^= S[p_key_m1[1]] ^ rcon(round);
+    p_key_0[1] ^= S[p_key_m1[2]];
+    p_key_0[2] ^= S[p_key_m1[3]];
+    p_key_0[3] ^= S[p_key_m1[0]];
+#else
+    unsigned int i;
     
     for (i = 0; i < 16; ++i)
         prev_key[i] = next_key[i];
+#endif
 }
 
 /*
