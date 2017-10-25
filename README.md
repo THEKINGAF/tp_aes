@@ -8,3 +8,8 @@ To compile both exercises :
 
     make clean
     make
+
+## References ##
+
+Key shedule functions from cmcqueen:
+https://github.com/cmcqueen/aes-min
