@@ -1,43 +1,6 @@
 #include "tp-utils.h"
 #include <stdlib.h>
 
-void reverse_halfround(uint8_t * block, uint8_t * key) {
-    unsigned int i;
-    uint8_t tmp;
-
-    for (i = 0; i < AES_BLOCK_SIZE; ++i) {
-        block[i] ^= key[i];
-    }
-
-    /* Row 0 */
-    block[0]  = Sinv[block[0]];
-    block[4]  = Sinv[block[4]];
-    block[8]  = Sinv[block[8]];
-    block[12] = Sinv[block[12]];
-
-    /* Row 1 */
-    tmp = block[13];
-    block[13] = Sinv[block[9]];
-    block[9]  = Sinv[block[5]];
-    block[5]  = Sinv[block[1]];
-    block[1]  = Sinv[tmp];
-
-    /* Row 2 */
-    tmp = block[14];
-    block[14] = Sinv[block[6]];
-    block[6]  = Sinv[block[tmp]];
-    tmp = block[10];
-    block[10] = Sinv[block[2]];
-    block[2]  = Sinv[tmp];
-
-    /* Row 3 */
-    tmp = block[3];
-    block[3]  = Sinv[block[7]];
-    block[7]  = Sinv[block[11]];
-    block[11] = Sinv[block[15]];
-    block[15] = Sinv[tmp];
-}
-
 int presentFalsePositive (uint8_t ** potentials_keys) {
     unsigned int i, j, sum;
 
@@ -97,8 +60,10 @@ int main () {
 		sum = 0;
 
 		for (k = 0; k < 256; ++k) {
+		    /* reverse one state byte for the last half-round */
 		    reversed_byte = block_set[k][j] ^ i; 
 		    reversed_byte = Sinv[reversed_byte];
+		    /* XOR all of the set */
 		    sum ^= reversed_byte;
 		}
 
