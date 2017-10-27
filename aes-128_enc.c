@@ -147,7 +147,7 @@ void next_aes128_round_key(const uint8_t prev_key[16], uint8_t next_key[16], int
     p_key_m1 = next_key + AES_128_KEY_SIZE - AES_KEY_SCHEDULE_WORD_SIZE;
 
     /* Rotate previous word and apply S-box. Also XOR Rcon for first byte. */
-    p_key_0[0] ^= S[p_key_m1[1]] ^ rcon(round);
+    p_key_0[0] ^= S[p_key_m1[1]] ^ rcon(round + 1);
     p_key_0[1] ^= S[p_key_m1[2]];
     p_key_0[2] ^= S[p_key_m1[3]];
     p_key_0[3] ^= S[p_key_m1[0]];
