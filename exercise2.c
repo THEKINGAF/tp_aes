@@ -1,11 +1,13 @@
 #include "tp-utils.h"
+#include <stdlib.h>
 
 void reverse_halfround(uint8_t * block, uint8_t * key) {
     unsigned int i;
     uint8_t tmp;
 
-    for (i = 0; i < AES_BLOCK_SIZE; ++i)
+    for (i = 0; i < AES_BLOCK_SIZE; ++i) {
         block[i] ^= key[i];
+    }
 
     /* Row 0 */
     block[0]  = Sinv[block[0]];
@@ -36,35 +38,104 @@ void reverse_halfround(uint8_t * block, uint8_t * key) {
     block[15] = Sinv[tmp];
 }
 
-int main () {
-    uint8_t key[AES_128_KEY_SIZE], reversed_block[AES_BLOCK_SIZE], ciphered_block[AES_BLOCK_SIZE];
-    unsigned int i, j;
-    uint8_t plaintext[AES_128_KEY_SIZE] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
-    uint8_t ciphertext[AES_128_KEY_SIZE] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
+int presentFalsePositive (uint8_t ** potentials_keys) {
+    unsigned int i, j, sum;
 
-    for (j = 0; j < AES_128_KEY_SIZE; ++i) {
-	i = 0;
-	do {
-	    key[j] = i;
-
-	    block_copy(ciphertext, reversed_block);
-	    reverse_halfround(reversed_block, key);
-	    block_copy(plaintext, ciphered_block);
-	    aes128_enc(ciphered_block, key, 3, 0);
-
-	    ++i;
-	} while (blocks_are_equals(reversed_block, ciphered_block) && i < 255);
-	if (blocks_are_equals(reversed_block, ciphered_block))
-	    printf("%02x ", i);
-	else {
-	    printf("Error : can't find the key\n");
-	    return 1;
+    for (i = 0; i < AES_BLOCK_SIZE; ++i) {
+	sum = 0;
+	for (j = 0; j < 256; ++j) {
+	    sum += potentials_keys[i][j];
+	    if (sum > 1)
+		return 1;
 	}
     }
 
-    for (i = 3; i > 0; --i) {
+    return 0;
+}
 
+int main () {
+    uint8_t guessed_key[AES_128_KEY_SIZE], temp_key[AES_128_KEY_SIZE];
+    uint8_t ** potentials_keys;
+    uint8_t reversed_byte, sum;
+    unsigned int i, j, k, l;
+    int falsePositiveFlag; 
+    uint8_t ** block_set;
+
+    uint8_t key[AES_128_KEY_SIZE] = {0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09,
+	0xcf, 0x4f, 0x3c};
+
+    /* allocating memory for the set of blocks */
+    block_set = malloc(256*sizeof(uint8_t *));
+    block_set[0] = malloc(AES_BLOCK_SIZE*256*sizeof(uint8_t));
+    for (i = 0; i < 256; ++i)
+	block_set[i+1] = block_set[i] + AES_BLOCK_SIZE;
+
+    /* allocating memory for potentials keys */
+    potentials_keys = malloc(AES_BLOCK_SIZE*sizeof(uint8_t *));
+    potentials_keys[0] = malloc(256*AES_BLOCK_SIZE*sizeof(uint8_t));
+    for (i = 0; i < AES_BLOCK_SIZE; ++i) {
+	if (i)
+	    potentials_keys[i] = potentials_keys[i - 1] + 256; 
+	for (j = 0; j < 256; ++j)
+	    potentials_keys[i][j] = 1;
     }
+
+    l = 0;
+    do {
+	/* generating set of ciphered blocks */
+	for (i = 0; i < 256; ++i) {
+	    for (k = 1; k < AES_BLOCK_SIZE; ++k)
+		block_set[i][k] = l;
+	    block_set[i][0] = i;
+	    aes128_enc(block_set[i], key, 4, 0);
+	}
+
+    
+	/* attack */
+	for (j = 0; j < AES_BLOCK_SIZE; ++j) {
+	    for (i = 0; i < 256; ++i) {
+		sum = 0;
+
+		for (k = 0; k < 256; ++k) {
+		    reversed_byte = block_set[k][j] ^ i; 
+		    reversed_byte = Sinv[reversed_byte];
+		    sum ^= reversed_byte;
+		}
+
+		/* eliminate candidate for key byte j */
+		if (sum)
+		    potentials_keys[j][i] = 0;
+	    }
+	}
+	falsePositiveFlag = presentFalsePositive(potentials_keys);
+	if (falsePositiveFlag)
+	    printf("False positive present after attack %d, changing constant and retrying...\n", l + 1);
+	++l;
+    } while (falsePositiveFlag && (l < 256));
+
+    if (falsePositiveFlag)
+	return 1;
+
+    printf("\n=============\n  KEY FOUND\n=============\n\n");
+
+    for (i = 0; i < AES_BLOCK_SIZE; ++i)
+	for (j = 0; j < 256; ++j)
+	    if(potentials_keys[i][j])
+		guessed_key[i] = j;
+
+    printf("key_schedule[last_round] :\n    "); print_block(guessed_key); printf("\n");
+
+    /* Reversing key schedule to find the initial key*/
+    prev_aes128_round_key(guessed_key, temp_key, 4);
+    prev_aes128_round_key(temp_key, guessed_key, 3);
+    prev_aes128_round_key(guessed_key, temp_key, 2);
+    prev_aes128_round_key(temp_key, guessed_key, 1);
+    printf("found key :\n    "); print_block(guessed_key); printf("\n");
+
+    free(block_set[0]);
+    free(block_set);
+    free(potentials_keys[0]);
+    free(potentials_keys);
 
     return 0;
 }
